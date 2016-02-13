@@ -1,0 +1,56 @@
+clear
+echo "###############################################"
+echo "####Saavn Song Extractor By black.dragon74 ####"
+echo "###############################################"
+echo " "
+sleep 3
+echo " "
+echo "###############################################"
+echo "####    Read The Instructions Carefully    ####"
+echo "###############################################"
+echo " "
+sleep 3
+echo " "
+echo "###############################################"
+echo "## Download the song which you want to save  ##"
+echo "##                                           ##"
+sleep 2
+echo "# Play and pause that song, Then Close Saavn  #"
+echo "##                                           ##"
+sleep 2
+echo "###############################################"
+echo " "
+echo " "
+echo "###############################################"
+echo "####    Checking If Saavn Is Installed     ####"
+echo "###############################################"
+if [ -e /sdcard/Android/data/com.saavn.android ];then
+echo " "
+echo " "
+echo "###############################################"
+echo "####       Yay! Saavn is Installed         ####"
+echo "###############################################"
+cd /sdcard/Android/data/com.saavn.android/songs
+if [ -e curr.mp3 ];then
+echo "Please enter the song name"
+read sname
+cp curr.mp3 /sdcard/Nickk_Saavn_Out/$sname.mp3
+echo " "
+echo " "
+echo "###############################################"
+echo "####       $sname saved. Enjoy....         ####"
+echo "###############################################"
+else
+echo " "
+echo " "
+echo "###############################################"
+echo "####     Yuck! Play n pause the song       ####"
+echo "###############################################"
+fi
+else
+echo " "
+echo " "
+echo "###############################################"
+echo "###       Sorry Saavn is not installed      ###"
+echo "###############################################"
+fi

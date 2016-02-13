@@ -1,0 +1,405 @@
+#!/sbin/sh
+OUTFD=$2
+ZIP=$3
+
+SYSTEMLIB=/system/lib
+
+# The functions (ch_con, ui_print, ch_con_ext, ln_con, set_perm, cp_perm) defined below are not coded by me
+# They have been copied from Universal Edify Method in Chainfire's repo
+
+ui_print() {
+  echo -n -e "ui_print $1\n" > /proc/self/fd/$OUTFD
+  echo -n -e "ui_print\n" > /proc/self/fd/$OUTFD
+}
+
+ch_con() {
+  LD_LIBRARY_PATH=$SYSTEMLIB /system/toolbox chcon -h u:object_r:system_file:s0 $1
+  LD_LIBRARY_PATH=$SYSTEMLIB /system/bin/toolbox chcon -h u:object_r:system_file:s0 $1
+  chcon -h u:object_r:system_file:s0 $1
+  LD_LIBRARY_PATH=$SYSTEMLIB /system/toolbox chcon u:object_r:system_file:s0 $1
+  LD_LIBRARY_PATH=$SYSTEMLIB /system/bin/toolbox chcon u:object_r:system_file:s0 $1
+  chcon u:object_r:system_file:s0 $1
+}
+
+ch_con_ext() {
+  LD_LIBRARY_PATH=$SYSTEMLIB /system/toolbox chcon $2 $1
+  LD_LIBRARY_PATH=$SYSTEMLIB /system/bin/toolbox chcon $2 $1
+  chcon $2 $1
+}
+
+ln_con() {
+  LD_LIBRARY_PATH=$SYSTEMLIB /system/toolbox ln -s $1 $2
+  LD_LIBRARY_PATH=$SYSTEMLIB /system/bin/toolbox ln -s $1 $2
+  ln -s $1 $2
+  ch_con $2
+}
+
+set_perm() {
+  chown $1.$2 $4
+  chown $1:$2 $4
+  chmod $3 $4
+  ch_con $4
+  ch_con_ext $4 $5
+}
+
+cp_perm() {
+  rm $5
+  if [ -f "$4" ]; then
+    cat $4 > $5
+    set_perm $1 $2 $3 $5 $6
+  fi
+}
+
+cat /system/bin/toolbox > /system/toolbox
+chmod 0755 /system/toolbox
+ch_con /system/toolbox
+
+# Now we will mount base file systems but, wait, some formalities first :P
+
+ui_print " "
+ui_print " "
+ui_print "************************************"
+ui_print "- Beastified Dolby By black.dragon74"
+ui_print "************************************"
+ui_print " "
+ui_print "- Beginning Installation"
+ui_print " "
+
+# Now we will do the actual mpunting as the formalities have been done.
+
+ui_print "- Mounting base file systems.."
+ui_print " "
+mount /system
+mount -o rw,remount /system
+mount -o rw,remount /system /system
+
+# Now let's UNZIP our zip, shall we?
+
+ui_print "- Unzipping the bundle.."
+ui_print " "
+cd /tmp
+mkdir nick
+cd nick
+unzip -o "$ZIP"
+
+# Audio fx removal script code begin...
+
+ui_print "- Removing Conflicting AudioFX.."
+ui_print " "
+rm -rf /system/app/AudioFX*
+rm -rf /system/priv-app/AudioFX*
+rm -f /system/etc/waves/default.mps
+rm -f /system/vendor/etc/audio_effects.conf
+rm -f /system/vendor/lib/libgnustl_shared.so
+rm -f /system/vendor/lib/libMA3-wavesfx-Coretex_A9.so
+rm -f /system/vendor/lib/libMA3-wavesfx-Qualcomm.so
+rm -f /system/vendor/lib/soundfx/libmaxxeffect-cembedded.so
+rm -f /system/vendor/lib/soundfx/libqcbassboost.so
+rm -f /system/vendor/lib/soundfx/libqcreverb.so
+rm -f /system/vendor/lib/soundfx/libqcvirt.so 
+
+# Digital Plus Code Begin...
+# Now we will remove conflicts for Dolby Digital as we will be installing this first of all
+
+ui_print "- Removing Conflicts for Digital Plus"
+ui_print " "
+rm -rf /system/app/Ds*
+rm -rf /system/DsUI*
+rm -f /system/dolby/ds1-default.xml
+rm -rf /system/etc/audio_effects.conf
+rm -f /system/etc/permissions/android.dolby.xml
+rm -f /system/lib/libstagefright_soft_ddpdec.so
+rm -f /system/lib/soundfx/libdseffect.so
+rm -f /system/vendor/etc/audio_effects.conf
+
+# Now let's place the Digital Plus Files
+# Stuffs to note, On LP or above /system/app structure is /system/app/AppName/AppName.apk and on older versions it is /system/app/AppName.apk
+
+ui_print "- Installing Program 1 of 3 (Digital Plus)"
+ui_print " "
+cd /tmp/nick
+
+# Get Android version, For Lollipop or above API will be 21 or above
+
+AndVer=$(cat /system/build.prop | grep "ro.build.version.sdk=" | dd bs=1 skip=21 count=2)
+
+if [ "$AndVer" -ge "21" ];
+then
+	# We will create folder first then will copy apk into it
+	mkdir -p /system/app/Ds
+	chmod -R 755 /system/app/Ds
+	cp /tmp/nick/app/Ds/Ds.apk /system/app/Ds/Ds.apk
+	chmod 644 /system/app/Ds.apk
+	mkdir -p /system/app/DsUI
+	chmod -R 755 /system/app/DsUI
+	cp /tmp/nick/app/DsUI/DsUI.apk /system/app/DsUI/DsUI.apk
+	chmod 644 /system/app/DsUI.apk
+else
+	# Old kitkat method ;)
+	cp /tmp/nick/app/Ds/Ds.apk /system/app/Ds.apk
+	chmod 644 /system/app/Ds.apk
+	cp /tmp/nick/app/DsUI/DsUI.apk /system/app/DsUI.apk
+	chmod 644 /system/app/DsUI.apk
+fi
+
+if [ -e /system/dolby ];
+then
+	cp /tmp/nick/dolby/ds1-default.xml /system/dolby/ds1-default.xml
+	chmod 644 /system/dolby/ds1-default.xml
+else
+	mkdir -p /system/dolby && chmod -R 755 /system/dolby
+	cp /tmp/nick/dolby/ds1-default.xml /system/dolby/ds1-default.xml
+	chmod 644 /system/dolby/ds1-default.xml
+fi 
+
+cp /tmp/nick/etc/audio_effects.conf /system/etc/audio_effects.conf
+chmod 644 /system/etc/audio_effects.conf
+cp /tmp/nick/etc/permissions/android.dolby.xml /system/etc/permissions/android.dolby.xml
+chmod 644 /system/etc/permissions/android.dolby.xml
+
+cp /tmp/nick/lib/libstagefright_soft_ddpdec.so /system/lib/libstagefright_soft_ddpdec.so
+chmod 644 /system/lib/libstagefright_soft_ddpdec.so
+
+if [ -e /system/lib/soundfx ];
+then
+	cp /tmp/nick/lib/soundfx/libdseffect.so /system/lib/soundfx/libdseffect.so
+	chmod 644 /system/lib/soundfx/libdseffect.so
+else
+	mkdir -p /system/lib/soundfx
+	chmod -R 755 /system/lib/soundfx
+	cp /tmp/nick/lib/soundfx/libdseffect.so /system/lib/soundfx/libdseffect.so
+	chmod 644 /system/lib/soundfx/libdseffect.so
+fi
+
+cp /tmp/nick/vendor/etc/audio_effects.conf /system/etc/audio_effects.conf
+chmod 644 /system/etc/audio_effects.conf
+
+# Digital plus code finished...
+# Finished Installing the Dolby Digital, Time to Install Atmos Plus
+
+ui_print "- Finished Installing Digital Plus..."
+ui_print " "
+
+# Atmos plus code begin...
+# Remove Dolby Atmos Conflicts
+
+ui_print "- Removing Atmos Conflicts..."
+ui_print " "
+rm -rf /system/app/As
+rm -rf /system/app/AsUI
+rm -f /system/lib/soundfx/libswdap-mod.so
+rm -f /system/lib/libdlbdapstorage.so
+rm -f /system/etc/dolby
+
+ui_print "- Installing Program 2 of 3 (Dolby Atmos)"
+ui_print " "
+
+# Declare some variables for this Atmos Program
+
+DAP_CONFIG_FILE=/system/etc/audio_effects.conf
+DAP_VENDOR_CONFIG=/system/vendor/etc/audio_effects.conf
+
+# Now we will remove conflicting effects from both config files.
+# Let's Patch Main Config First.
+
+ui_print "- Patching $DAP_CONFIG_FILE"
+ui_print " "
+sed -i '/dap {/,/}/d' $DAP_CONFIG_FILE
+
+# Now we will patch vendor's configfuration file
+
+ui_print "- Patching $DAP_VENDOR_CONFIG"
+ui_print " "
+if [ -f $DAP_VENDOR_CONFIG ];
+then
+	sed -i '/dap {/,/}/d' $DAP_VENDOR_CONFIG
+fi
+
+# Now let's place the Atmos Plus Files
+# Stuffs to note, On LP or above /system/app structure is /system/app/AppName/AppName.apk and on older versions it is /system/app/AppName.apk
+
+# Get API version
+AndVer2=$(cat /system/build.prop | grep "ro.build.version.sdk=" | dd bs=1 skip=21 count=2)
+
+if [ "$AndVer2" -ge "21" ];
+then
+	# We will create folder first then will copy apk into it and we also have to make sure Nu player is turned off in Lollipop bases ROMs
+	ui_print "- Turn off NU Player in Developer Options"
+	ui_print " "
+	mkdir -p /system/app/As
+	set_perm 0 0 0755 /system/app/As
+	cp_perm 0 0 0644 /tmp/nick/app/As/As.apk /system/app/As/As.apk
+	mkdir -p /system/app/AsUI
+	set_perm 0 0 0755 /system/app/AsUI
+	cp_perm 0 0 0644 /tmp/nick/app/AsUI/AsUI.apk /system/app/AsUI/AsUI.apk
+else
+	# Old kitkat method ;)
+	cp_perm 0 0 0644 /tmp/nick/app/As/As.apk /system/app/As.apk
+	cp_perm 0 0 0644 /tmp/nick/app/AsUI/AsUI.apk /system/app/AsUI.apk
+fi
+
+cp_perm 0 0 0644 /tmp/nick/lib/soundfx/libswdap-mod.so /system/lib/soundfx/libswdap-mod.so
+cp_perm 0 0 0644 /tmp/nick/lib/libdlbdapstorage.so /system/lib/libdlbdapstorage.so
+
+if [ -e /system/etc/dolby ];
+then
+	cp_perm 0 0 0644 /tmp/nick/etc/dolby/ds-default.xml /system/etc/dolby/ds-default.xml
+else	
+	mkdir -p /system/etc/dolby
+	set_perm 0 0 0755 /system/etc/dolby
+	cp_perm 0 0 0644 /tmp/nick/etc/dolby/ds-default.xml /system/etc/dolby/ds-default.xml
+fi
+
+# Now we will add libraries entries and effects into the config file, which we removed earlier
+# Let's Patch Main File First
+
+sed -i 's/^libraries {/libraries {\n  dap {\n    path \/system\/lib\/soundfx\/libswdap-mod.so\n  }/g' $DAP_CONFIG_FILE
+sed -i 's/^effects {/effects {\n  dap {\n    library dap\n    uuid 9d4921da-8225-4f29-aefa-39537a041337\n  }/g' $DAP_CONFIG_FILE
+
+# Now we will patch vendor config
+
+if [ -f $DAP_VENDOR_CONFIG ];
+then
+	sed -i 's/^libraries {/libraries {\n  dap {\n    path \/system\/lib\/soundfx\/libswdap-mod.so\n  }/g' $DAP_VENDOR_CONFIG
+	sed -i 's/^effects {/effects {\n  dap {\n    library dap\n    uuid 9d4921da-8225-4f29-aefa-39537a041337\n  }/g' $DAP_VENDOR_CONFIG
+fi
+
+# Atmos plus code end.
+# Finished Installing Atmos Plus, Time to install simplest Dolby Digital Plus
+
+ui_print "- Finished Installing Atmos Plus.."
+ui_print " "
+
+# Dolby Digital Plus code begin
+# Now we will install the less troublesome but highly effective Dolby Digital Plus
+# Let's first remove config as always
+
+ui_print "- Removing Dolby Digital Plus Conflicts.."
+ui_print " "
+rm -rf /system/app/GlobalDolbyEffect*
+rm -f /system/lib/soundfx/libdolbymobileeffect.so
+rm -f /system/lib/libdolbymobileaudioeffect_jni.so
+rm -f /system/lib/libdolbyaudioeffectnativeservice.so
+rm -f /system/etc/dolby_config.xml
+
+# Let's declare the runtime variables like we did in DAP
+
+DDP_CONFIG_FILE=/system/etc/audio_effects.conf
+DDP_VENDOR_CONFIG=/system/vendor/etc/audio_effects.conf
+
+# We will patch vendor config if exists as it is more effective and persistent
+
+ui_print "- Patching $DDP_VENDOR_CONFIG"
+ui_print " "
+if [ -f $DDP_VENDOR_CONFIG ];
+then
+	DDP_CONFIG_FILE=$DDP_VENDOR_CONFIG
+fi
+
+# Remove conflicting entries from the config file
+
+ui_print "- Patching $DDP_CONFIG_FILE"
+ui_print " "
+sed -i '/dolby_mobile/,/}/d' $DDP_CONFIG_FILE
+
+# Now let's copy the files
+# Declare variables to use as we will V3 file for Jellybean or above
+
+ui_print "- Installing Program 3 of 3 (Dolby Digital Plus).."
+ui_print " "
+EFFECT_FILE_V2=/tmp/nick/lib/soundfx/v2/libdolbymobileeffect.so
+EFFECT_FILE_V3=/tmp/nick/lib/soundfx/v3/libdolbymobileeffect.so
+EFFECT_FILE=$EFFECT_FILE_V2
+
+# Get Android version
+
+AndVer3=$(cat /system/build.prop | grep "ro.build.version.sdk=" | dd bs=1 skip=21 count=2)
+
+if [ "$Andver3" -ge "18" ]; 
+then
+	EFFECT_FILE=$EFFECT_FILE_V3 
+fi
+
+cp $EFFECT_FILE /system/lib/soundfx/libdolbymobileeffect.so
+
+# Stuffs to note, On LP or above /system/app structure is /system/app/AppName/AppName.apk and on older versions it is /system/app/AppName.apk
+
+# Get API version
+
+AndVer4=$(cat /system/build.prop | grep "ro.build.version.sdk=" | dd bs=1 skip=21 count=2)
+
+if [ "$AndVer4" -ge "21" ];
+then
+	# We will create folder first then will copy apk into it and we also have to make sure Nu player is turned off in Lollipop bases ROMs
+	ui_print "- Turn off NU Player in Developer Options"
+	ui_print " "
+	mkdir -p /system/app/GlobalDolbyEffect/lib/arm
+	cp /tmp/nick/app/GlobalDolbyEffect.apk /system/app/GlobalDolbyEffect/GlobalDolbyEffect.apk
+	cp /tmp/nick/lib/libdolbymobileaudioeffect_jni.so /system/app/GlobalDolbyEffect/lib/arm/libdolbymobileaudioeffect_jni.so
+	cp /tmp/nick/lib/libdolbyaudioeffectnativeservice.so /system/app/GlobalDolbyEffect/lib/arm/libdolbyaudioeffectnativeservice.so
+else
+	# Old kitkat method ;)
+	cp /tmp/nick/app/GlobalDolbyEffect.apk /system/app/GlobalDolbyEffect.apk
+	cp /tmp/nick/lib/libdolbymobileaudioeffect_jni.so /system/lib/libdolbymobileaudioeffect_jni.so
+	cp /tmp/nick/lib/libdolbyaudioeffectnativeservice.so /system/lib/libdolbyaudioeffectnativeservice.so
+fi
+
+# Copy Dolby Dedicated Config
+
+cp /tmp/nick/etc/dolby_config.xml /system/etc/dolby_config.xml
+
+# Repatch to add entries to both configs
+
+ui_print "- Repatching $DDP_CONFIG_FILE"
+ui_print " "
+sed -i 's/^libraries {/libraries {\n  dolby_mobile {\n    path \/system\/lib\/soundfx\/libdolbymobileeffect.so\n  }/g' $DDP_CONFIG_FILE
+sed -i 's/^effects {/effects {\n  dolby_mobile {\n    library dolby_mobile\n    uuid 7c0cb5a0-6705-11e0-ae3e-0002a5d5c51b\n  }/g' $DDP_CONFIG_FILE
+ui_print "- $DDP_CONFIG_FILE patch success."
+ui_print " "
+
+# Dolby Digital Plus code begin
+# Finished Installing all..
+
+# Add a backup script for survial
+
+if [ -d /system/addon.d ]; 
+then
+	ui_print "- Your ROM supports update survial"
+	ui_print " "
+	ui_print "- Adding a backup survival script"
+	ui_print " "
+	cp_perm 0 0 0755 /tmp/nick/addon.d/22-beast-effect.sh /system/addon.d/22-beast-effect.sh
+	ui_print "- Backup script has been installed"
+	ui_print " "
+else
+	ui_print "- Your ROM doesn't have update survival"
+	ui_print " "
+	ui_print "- Skipping backup script installation"
+	ui_print " "
+fi
+
+# Adding an experiment related to Saavn
+
+ui_print "- Adding Saavn song extractor"
+ui_print " "
+ui_print "- Type pullsvn in terminal to run it"
+ui_print " "
+cp /tmp/nick/bin/pullsvn /system/bin/pullsvn
+chmod 777 /system/bin/pullsvn
+
+# Let's cleanup and thank me :P
+
+ui_print "- Cleaning up the mess"
+ui_print " "
+umount /system
+rm -f /system/toolbox
+rm -rf /tmp/nick
+ui_print " "
+ui_print "######################################"
+ui_print "#  - Thanks to Chainfire...          #"
+ui_print "#  - Thanks to worstenbrood...       #"
+ui_print "#  - Credits to black.dragon74(ME)...#"
+ui_print "#  - All done. Unleash the hell...   #"
+ui_print "######################################"
+ui_print " "
+ui_print " "
